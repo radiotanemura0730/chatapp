@@ -1,0 +1,19 @@
+a {
+    display: block;
+    width: 30%;
+    text-align: center;
+    margin: 1rem auto;
+    padding: 2px;
+    border: solid 1px black;
+    font-size: 1rem;
+}
+
+button {
+    display: block;
+    width: 30%;
+    text-align: center;
+    margin: 1rem auto;
+    padding: 2px;
+    border: solid 1px black;
+    font-size: 1rem;
+}
