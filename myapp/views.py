@@ -1,6 +1,10 @@
 from django.shortcuts import redirect, render
 from django.contrib.auth import authenticate, get_user_model, login
-from .forms import SignUpForm
+from .forms import SignUpForm, LoginForm
+from django.contrib.auth.views import (
+    LoginView,
+    LogoutView,
+)
 
 User = get_user_model()
 
@@ -34,8 +38,10 @@ def signup_view(request):
     return render(request, "myapp/signup.html", context)
 
 
-def login_view(request):
-    return render(request, "myapp/login.html")
+class Login(LoginView):
+        
+    authentication_form = LoginForm
+    template_name = "myapp/login.html"
 
 def friends(request):
     return render(request, "myapp/friends.html")
