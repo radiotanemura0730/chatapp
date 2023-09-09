@@ -4,12 +4,23 @@ from django.shortcuts import redirect, render, get_object_or_404
 from django.contrib.auth import authenticate, get_user_model, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from .forms import SignUpForm, LoginForm, TalkForm
+from .forms import (
+    SignUpForm, 
+    LoginForm, 
+    TalkForm, 
+    ImageSettingForm, 
+    MailSettingForm, 
+    PasswordChangeForm, 
+    UserNameSettingForm,
+    )
 from django.db.models import Q
 from django.contrib.auth.views import (
     LoginView,
     LogoutView,
+    PasswordChangeDoneView,
+    PasswordChangeView,
 )
+from django.urls import reverse_lazy
 from .models import Talk
 
 User = get_user_model()
@@ -21,7 +32,7 @@ def index(request):
 def signup_view(request):
     if request.method == "GET":
         form = SignUpForm()
-        error_message = ""
+        error_message = ''
     
     elif request.method == "POST":
         form = SignUpForm(request.POST, request.FILES)
@@ -49,7 +60,7 @@ class Login(LoginView):
     template_name = "myapp/login.html"
 
 class Logout(LoginRequiredMixin, LogoutView):
-    pass
+    template_name = "myapp/logout.html"
 
 @login_required
 def friends(request):
@@ -113,6 +124,87 @@ def talk_room(request, user_id):
 
     return render(request, "myapp/talk_room.html", context)
 
+@login_required
 def setting(request):
     return render(request, "myapp/setting.html")
 
+@login_required
+def user_img_change(request):
+    user = request.user
+    if request.method == "GET":
+        form = ImageSettingForm(instance=user)
+
+    elif request.method == "POST":
+        form = ImageSettingForm(request.POST, request.FILES, instance=user)
+        if form.is_valid():
+            form.save()
+            return redirect("user_img_change_done")
+        
+        else:
+             print(form.errors)
+
+    context = {
+        "form": form,
+    }
+    return render(request, "myapp/user_img_change.html", context)
+    
+@login_required
+def user_img_change_done(request):
+    return render(request, "myapp/user_img_change_done.html")
+
+@login_required
+def mail_change(request):
+    user = request.user
+    if request.method == "GET":
+        form = MailSettingForm(instance=user)
+
+    elif request.method == "POST":
+        form = MailSettingForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            return redirect("mail_change_done")
+        
+        else:
+            print(form.errors)
+
+    context = {
+        "form": form,
+    }
+    return render(request, "myapp/mail_change.html", context)
+    
+@login_required
+def mail_change_done(request):
+    return render(request, "myapp/mail_change_done.html")
+
+@login_required
+def username_change(request):
+    user = request.user
+    if request.method == "GET":
+        form = UserNameSettingForm(instance=user)
+
+    elif request.method == "POST":
+        form = UserNameSettingForm(request.POST, instance=user)
+        if form.is_valid():
+            form.save()
+            return redirect("username_change_done")
+        
+        else:
+            print(form.errors)
+
+    context = {
+        "form": form,
+    }
+
+    return render(request, "myapp/username_change.html", context)
+
+@login_required
+def username_change_done(request):
+    return render(request, "myapp/username_change_done.html")
+    
+class PasswordChange(PasswordChangeView):
+    form_class = PasswordChangeForm
+    success_url = reverse_lazy("password_change_done")
+    template_name ="myapp/password_change.html"
+
+class PasswordChangeDone(PasswordChangeDoneView):
+    template_name = "myapp/password_change_done.html"
