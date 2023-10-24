@@ -1,27 +1,24 @@
-import operator
-
-from django.shortcuts import redirect, render, get_object_or_404
-from django.contrib.auth import authenticate, get_user_model, login
+from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
-from .forms import (
-    SignUpForm, 
-    LoginForm, 
-    TalkForm, 
-    ImageSettingForm, 
-    MailSettingForm, 
-    PasswordChangeForm, 
-    UserNameSettingForm,
-    )
-from django.db.models import Q
 from django.contrib.auth.views import (
-    LoginView,
-    LogoutView,
     PasswordChangeDoneView,
     PasswordChangeView,
 )
+from django.db.models import Q
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
+
+from .forms import (
+    ImageSettingForm,
+    PasswordChangeForm,
+    TalkForm,
+    UserNameSettingForm,
+    FriendsSearchForm
+)
 from .models import Talk
+from .utils import create_info_list
+
+from django.db.models import OuterRef, Subquery
 
 User = get_user_model()
 
@@ -29,65 +26,42 @@ User = get_user_model()
 def index(request):
     return render(request, "myapp/index.html")
 
-def signup_view(request):
-    if request.method == "GET":
-        form = SignUpForm()
-        error_message = ''
-    
-    elif request.method == "POST":
-        form = SignUpForm(request.POST, request.FILES)
-        if form.is_valid():
-            form.save()
-            username = form.cleaned_data.get("username")
-            password = form.cleaned_data.get("password1")
-            user = authenticate(username=username, password=password)
-            if user is not None:
-                login(request, user)
-            return redirect("/")
-        
-        else:
-            print(form.errors)
-
-
-    context = {
-        "form": form,
-    }
-    return render(request, "myapp/signup.html", context)
-
-class Login(LoginView):
-        
-    authentication_form = LoginForm
-    template_name = "myapp/login.html"
-
-class Logout(LoginRequiredMixin, LogoutView):
-    template_name = "myapp/logout.html"
-
 @login_required
 def friends(request):
     user = request.user
-    friends = User.objects.exclude(id=user.id)
+    
+    latest_msg = Talk.objects.filter(
+            Q(talk_from=OuterRef("pk"), talk_to=user)
+        |Q(talk_from=user, talk_to=OuterRef("pk"))
+        ).order_by("-time")
 
-    info = []
-    info_have_message = []
-    info_have_no_message = []
+    friends = User.objects.exclude(id=user.id).annotate(latest_msg_talk=Subquery(latest_msg.values("talk")[:1]))
 
-    for friend in friends:
-        latest_message = Talk.objects.filter(
-            Q(talk_from=user, talk_to=friend) | Q(talk_to=user, talk_from=friend)
-        ).order_by('time').last()
+    form = FriendsSearchForm()
 
-        if latest_message:
-            info_have_message.append([friend, latest_message.talk, latest_message.time])
-        else:
-            info_have_no_message.append([friend, None, None])
+    if request.method == "GET" and "friends_search" in request.GET:
+        form = FriendsSearchForm(request.GET)
 
-    info_have_message = sorted(info_have_message, key=operator.itemgetter(2))
+        if form.is_valid():
+            keyword = form.cleaned_data.get("keyword")
+            if keyword:
+                latest_msg = Talk.objects.filter(
+                        Q(talk_from=OuterRef("pk"), talk_to=user)
+                    |Q(talk_from=user, talk_to=OuterRef("pk"))
+                     ).order_by("-time")
+                
+                friends = User.objects.filter(Q(username__icontains=keyword) | Q(email__icontains=keyword)).annotate(latest_msg_talk=Subquery(latest_msg.values("talk")[:1]))
 
-    info.extend(info_have_message)
-    info.extend(info_have_no_message)
-
+                context = {
+                    "form": form,
+                    "is_searched": True,
+                    "friends": friends,
+                }
+                return render(request, "myapp/friends.html", context)
+            
     context = {
-        "info": info,
+        "friends": friends,
+        "form": form,
     }
     return render(request, "myapp/friends.html", context)
     
@@ -112,14 +86,11 @@ def talk_room(request, user_id):
         new_talk = Talk(talk_from=user, talk_to=friend)
         form = TalkForm(request.POST, instance=new_talk)
 
-        if form.is_valid():
-               
+        if form.is_valid():             
             form.save()
-
             return redirect("talk_room", user_id)
             
         else:
-
             print(form.errors)
 
     return render(request, "myapp/talk_room.html", context)
@@ -151,30 +122,6 @@ def user_img_change(request):
 @login_required
 def user_img_change_done(request):
     return render(request, "myapp/user_img_change_done.html")
-
-@login_required
-def mail_change(request):
-    user = request.user
-    if request.method == "GET":
-        form = MailSettingForm(instance=user)
-
-    elif request.method == "POST":
-        form = MailSettingForm(request.POST, instance=user)
-        if form.is_valid():
-            form.save()
-            return redirect("mail_change_done")
-        
-        else:
-            print(form.errors)
-
-    context = {
-        "form": form,
-    }
-    return render(request, "myapp/mail_change.html", context)
-    
-@login_required
-def mail_change_done(request):
-    return render(request, "myapp/mail_change_done.html")
 
 @login_required
 def username_change(request):

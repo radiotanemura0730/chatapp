@@ -10,23 +10,26 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 import os
-import environ
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-ozyl(r!*=wht$a7^pp+wp=zg5g96yg5wz!7fwe$gq63874z9##'
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = ["13.113.198.62"]
+DEBUG = os.getenv("DEBUG")
+ALLOWED_HOSTS = [s.strip() for s in os.getenv("ALLOWED_HOSTS","").split(",") if s]
 
 
 # Application definition
@@ -38,18 +41,32 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'myapp',
+    'myapp.apps.MyappConfig',
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'debug_toolbar',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
+
+INTERNAL_IPS = ['127.0.0.1']
+
+DEBUG_TOOLBAR_CONFIG = {
+     "SHOW_TOOLBAR_CALLBACK" : lambda request: True,
+}
 
 ROOT_URLCONF = 'intern.urls'
 
@@ -71,17 +88,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'intern.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/4.0/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
-
 
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
@@ -101,15 +113,12 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-AUTH_USER_MODEL = 'myapp.User'
-
-
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ja'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Tokyo'
 
 USE_I18N = True
 
@@ -120,19 +129,15 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = '/friends'
-
-STATIC_ROOT = BASE_DIR / "staticfiles"
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # if os.path.isfile('.env'):
 #     env = environ.Env(DEBUG=(bool, False),)
@@ -140,3 +145,45 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 #     DEBUG = env('DEBUG')
 #     ALLOWED_HOSTS = env.list('ALLOWED_HOSTS')
+
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+
+DEFAULT_FROM_EMAIL = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+
+
+AUTH_USER_MODEL = 'myapp.User'
+
+
+
+SITE_ID = 1
+
+AUTHENTICATION_BACKENDS =  [
+    'allauth.account.auth_backends.AuthenticationBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED= True
+
+LOGIN_REDIRECT_URL = "/friends"
+LOGOUT_REDIRECT_URL = "/"
+LOGIN_URL = "account_login"
+
+ACCOUNT_LOGOUT_ON_GET = True
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = True
+
+ACCOUNT_EMAIL_SUBJECT_PREFIX = ""
+ACCOUNT_MAX_EMAIL_ADDRESSES = 2
+
+ACCOUNT_FORMS = {
+    'login': 'myapp.forms.MyLoginForm',
+    'signup': 'myapp.forms.MySignupForm',
+    'reset_password_from_key': 'myapp.forms.MyResetPasswordKeyForm',
+    'reset_password': 'myapp.forms.MyResetPasswordForm',
+}
+
+ACCOUNT_ADAPTER = 'myapp.adapter.AccountAdapter'
+
